@@ -1,0 +1,40 @@
+# ---- Models -----------------------------------------------------------------
+# A POOL of free providers. Any entry whose API key is missing from .env is skipped.
+# Check what each key can use with:  .venv/bin/python run.py --list-models
+llm:
+  strategy: round_robin       # round_robin = rotate providers batch by batch (spreads free quota)
+                              # failover    = stay on the first provider until its quota runs out (most consistent)
+  pool:   # verified with --list-models on 2026-11-07; rotate order = list order
+    - {name: gemini,      provider: gemini,        model: gemini-3.5-flash,             api_key_env: GEMINI_API_KEY}
+    - {name: groq,        provider: openai_compat, model: openai/gpt-oss-120b,          api_key_env: GROQ_API_KEY,       base_url: "https://api.groq.com/openai/v1"}
+    - {name: mistral,     provider: openai_compat, model: mistral-small-latest,         api_key_env: MISTRAL_API_KEY,    base_url: "https://api.mistral.ai/v1"}
+    - {name: openrouter,  provider: openai_compat, model: "google/gemma-4-31b-it:free", api_key_env: OPENROUTER_API_KEY, base_url: "https://openrouter.ai/api/v1"}
+    - {name: gemini-lite, provider: gemini,        model: gemini-3.5-flash-lite,        api_key_env: GEMINI_API_KEY}
+    # RESERVE (e.g. a paid key, or the API Kuku provides): never used while a free provider still answers;
+    # once every free provider is out of quota or rate-limited, ALL remaining work goes here.
+    # Uncomment, set the model/base_url, and put PAID_API_KEY=... in .env:
+    # - {name: paid, provider: openai_compat, model: <model id>, api_key_env: PAID_API_KEY, base_url: "<https://.../v1>", reserve: true}
+    # - {name: paid-gemini, provider: gemini, model: gemini-3.5-flash, api_key_env: PAID_GEMINI_API_KEY, reserve: true}
+    # add more any time, e.g. Cerebras:
+    # - {name: cerebras, provider: openai_compat, model: <id from --list-models>, api_key_env: CEREBRAS_API_KEY, base_url: "https://api.cerebras.ai/v1"}
+  editor_model: gemini        # the final head-to-head ranking always uses ONE model (pool name) for consistency
+  temperature: 0.2
+  max_retries: 3
+  min_seconds_between_calls: 4   # per provider, stays under free-tier requests/minute
+  cooldown_seconds: 90           # a rate-limited provider is paused this long while others are tried
+  legacy_cache_models: [gemini-3.5-flash]   # reuse answers saved by the first version of the tool
+  cache_dir: .cache/llm          # identical prompt => no new API call, whichever provider answered
+
+# ---- Pipeline ----
+promo:
+  min_len: 20                 # seconds (brief: 20-60 s)
+  max_len: 60
+  hook_window: 3.0            # seconds: the hook must land in the first 3 s
+  candidates_per_episode: 3   # rule-based windows sent to the LLM per episode
+  context_pad: 8              # seconds of extra beat-sheet context around each candidate
+  episodes_per_call: 4        # ~5k tokens per request: fits free per-minute token limits (Groq is the tightest)
+  stitched_promos: 5          # cross-episode promos to propose (0 = off)
+  max_promos_per_episode: 2   # after judging, keep at most N per episode
+  top_n_report: 25            # rows shown in the ranked report
+  knowledge_pack: knowledge/promo_knowledge.json   # research-backed editing rules added to the judge prompt ('' = off)
+  knowledge_max_chars: 2400   # cap: ~600 tokens per call

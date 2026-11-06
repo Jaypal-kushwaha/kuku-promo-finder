@@ -1,0 +1,8 @@
+# HUMAN ratings of the tool's top picks. Copy to eval/ratings.yaml.
+# Open outputs/<show>/promos.md, read each of the top 10-15 promos against the script, and rate by promo id:
+#   usable      = would post as is
+#   needs-trim  = right moment, start/end off by a few seconds
+#   bad         = wrong moment / no hook / no cliffhanger / confusing for a new viewer
+#
+# S1: usable
+# E03-C1: needs-trim

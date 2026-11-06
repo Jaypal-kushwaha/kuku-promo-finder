@@ -1,0 +1,63 @@
+{
+  "_meta": {
+    "version": "seed-v0",
+    "status": "PLACEHOLDER: editorial assumptions plus a few directional industry sources. Replace with the output of knowledge/research_prompt.md (run with web search).",
+    "date": "2026-11-07"
+  },
+  "high_performing_principles": [
+    {"principle": "Conflict-first opening", "why_it_works": "A visible clash between two clear roles needs no backstory", "evidence": "Short-drama ad teardowns describe plot-driven hooks showing key plot points up front (Insightrackr); directional, vendor analysis", "confidence": "medium", "best_application": "Open on the cruelest line or the physical act, not on the build-up"},
+    {"principle": "Cut before the payoff", "why_it_works": "An open question pushes viewers to the app to see the answer", "evidence": "Standard serial-drama practice; episode scripts themselves end on scripted cliffhangers", "confidence": "medium", "best_application": "End one beat before the answer, blow, reveal or decision lands"},
+    {"principle": "Underdog reversal tease", "why_it_works": "Rags-to-riches / underdog / power-struggle themes are among the most popular", "evidence": "Kuku TV leadership quoted in trade press (afaqs, 2025)", "confidence": "low", "best_application": "Show the humiliation, then the first sign that the underdog is more powerful; cut before full payoff"}
+  ],
+  "weak_or_risky_principles": [
+    {"technique": "Slow establishing open", "why_it_underperforms": "Nothing in the first 3 s gives a reason to stop scrolling", "evidence": "Editorial assumption", "exceptions": "A striking image (fire, chains) can work without dialogue"},
+    {"technique": "Ending on resolution", "why_it_underperforms": "No open question means no reason to install or watch", "evidence": "Editorial assumption", "exceptions": "None for acquisition promos"},
+    {"technique": "Context-heavy clips", "why_it_underperforms": "Names, earlier events and flashbacks confuse a first-time viewer", "evidence": "Editorial assumption", "exceptions": "When one spoken line explains the stakes"}
+  ],
+  "hook_rankings": [
+    "Physical aggression or humiliation on screen (slap, strike, shove, kneel, chains): strongest, needs no context",
+    "Shocking accusatory or cruel line delivered face to face",
+    "Public betrayal revealed (altar, family turns away)",
+    "Identity reveal or recognition ('Who are you?' / 'You already know')",
+    "Explicit threat with stakes (execution, arrest, fire)",
+    "Emotional reaction shot: only works if the cause is visible in the same 3 s",
+    "Mystery question line: weakest alone, pair with visible conflict"
+  ],
+  "retention_findings": [
+    "By about 10 s a stranger must know who is wronged and by whom",
+    "Every 10-15 s should add an escalation or a new turn (rehook); a flat middle loses viewers",
+    "30-45 s is the safe length; use 55-60 s only if tension keeps rising"
+  ],
+  "cliffhanger_findings": [
+    "Strongest: interrupted reveal, sudden arrival or door bursting in, a blow or execution about to happen",
+    "Strong: direct question left unanswered, a betrayal just discovered",
+    "Weak: a scene fading out on music or ambience, a calm exit, a hug or a resolved argument"
+  ],
+  "microdrama_specific_insights": [
+    "Short-drama apps mainly advertise with raw clips from their hit shows (AppGrowing on ReelShort)",
+    "Ad audiences skew to women aged 25-44 for ReelShort-type romance and revenge drama (AppGrowing)",
+    "If the show title already promises the twist (e.g. a secret duke), the reveal is the selling point, not a spoiler"
+  ],
+  "important_tradeoffs": [
+    "Hook strength vs standalone clarity: the most extreme moment often needs the most context",
+    "Spoilers vs payoff: late-episode reveals hook hard but can make episode 1 feel slow"
+  ],
+  "sources": [
+    {"claim": "Plot-driven hooks with key plot points up front in short-drama ads", "source": "Insightrackr, ReelShort Mobile Advertising Intelligence Analysis", "url": "https://blog.insightrackr.com/en/docs/ReelShort-Mobile-Advertising-Intelligence-Analysis", "year": "n.d."},
+    {"claim": "ReelShort ads mainly use clips from popular dramas; target women 25-44", "source": "AppGrowing Global", "url": "https://appgrowing.net/blog/en/reelshort", "year": "n.d."},
+    {"claim": "DramaBox appears to favour ~1 min ads (single-snapshot caveat)", "source": "Admapix", "url": "https://www.admapix.com/blog/ad-intelligence/dramabox-ad-strategy-2026", "year": "2026"},
+    {"claim": "Rags-to-riches, underdog and power-struggle stories are popular on Kuku TV", "source": "afaqs", "url": "https://www.afaqs.com/news/ott-streaming/kuku-fm-launches-vertical-microdrama-ott-platform-kuku-tv-8718086", "year": "2025"}
+  ],
+  "llm_decision_rules": [
+    "START on the most charged line or action; never on walking, scenery, or a reaction without its cause",
+    "Prefer hooks a stranger reads from roles alone (bride vs groom, maid vs lady) over plot-specific references",
+    "Never start mid-sentence or on a line that answers something the viewer did not hear",
+    "Inside the first 10 s the wronged person and the wrongdoer must be clear; otherwise standalone <= 3",
+    "Score cliffhanger 5 only if the clip ends one beat before an answer, blow, arrival or reveal; ending on resolution <= 2",
+    "Each 10-15 s needs a new escalation; flat middles lower the hook and cliffhanger scores",
+    "Penalise clips that depend on flashbacks, voice-over, or several unnamed characters",
+    "Keep 20-60 s; aim for 30-45 s unless tension keeps rising",
+    "Stitched promos must keep the same characters and conflict across segments",
+    "Score 5 rarely: at most about 1 in 5 clips deserves it on any dimension"
+  ]
+}

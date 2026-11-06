@@ -1,0 +1,16 @@
+# secrets
+.env
+*.env
+# Kuku's confidential input pack — never commit or publish
+I Married a Broken Soldier*/
+data/
+*.pdf
+# local
+.venv/
+.cache/
+__pycache__/
+*.pyc
+outputs/ui_*/
+outputs/
+submission/
+docs/

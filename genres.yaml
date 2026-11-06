@@ -1,0 +1,203 @@
+# Genre playbooks for promo selection.
+#
+# ASSUMPTION: no public per-promo view data exists, so these playbooks are
+# hand-written from (a) public ad-intelligence write-ups on ReelShort /
+# DramaBox (plot-driven hooks, conflict-first clips, ~1 min), (b) Kuku TV's
+# stated top themes (rags-to-riches, underdog, power struggle), and
+# (c) standard microdrama conventions. With Kuku's own promo view / CTR data
+# the `priority` and `weights` below are the knobs to re-fit.
+#
+# archetypes are listed in POSTING ORDER: the first archetype is the promo
+# type we would post first for a new show of this genre.
+# priority: 1.0 (post first) .. 0.3 (filler)
+# triggers: words that, if present in a beat, suggest this archetype (rules only)
+
+common:
+  # beat-level hook signals (used by the rule scorer, 0 tokens)
+  hook_words:
+    violence: [slap, slaps, slapped, strike, strikes, struck, punch, hit, shove, shoves, grab, grabs, seize, seizes, drag, drags, throw, throws, thrown, choke, stab, blade, sword, knife, dagger, crop, whip, iron, branding, red-hot, fire, flames, blaze, burn, burning, explosion, blood, bleeding, wound, chains, chained, shackles, gallows, noose, execution, execute, hang]
+    reveal: ["who are you", "you're alive", "is alive", "not dead", "died", "dead", truth, secret, reveal, unmask, recognize, "the duke", duke, heir, rightful, identity, disguise, imposter, pregnant, "your son", "my son", "her son", poison, poisoned, arsenic, framed, lie, lied, liar, ring, crest, signet]
+    humiliation: [kneel, "on your knees", beg, begging, mud, plain, worthless, "nothing", disowned, disinherit, banished, "get out", servant, maid, scrub, beggar, peasant, pathetic, disgrace, humiliate, mock, laughing, laughs]
+    betrayal: [betray, betrayed, "you knew", sister, fiancé, fiance, affair, "changed my mind", marrying, wedding, altar, "cannot marry", cheat, traitor, treason]
+    romance: [kiss, kisses, embrace, "my wife", "my husband", "marry me", proposal, propose, love, "i love", vow, "protect you", "touch her", mine]
+    threat: ["you will pay", "you'll pay", "i will destroy", destroy, kill, die, "you will die", "or else", hang, witch, witchcraft, guilty, arrest, arrested, guards, "seize her", "take her"]
+  emotion_words: [furious, rage, enraged, screaming, scream, shouting, shocked, horrified, terrified, cruel, sneering, mocking, gloating, menacing, cold, icy, venomous, desperate, devastated, defiant, sobbing, trembling, murderous, triumphant, outraged, livid, venom]
+  cliffhanger_words: ["cut to black", cliffhanger, "smash cut", freeze, sting, swells, "door bursts", "bursts in", "who are you", "what?", "you?", arrives, "just as", suddenly, "stop!", halt, gasp, gasps, silence, "we'll see", "not yet", "this isn't over", "invalid", "guilty", "execute", "arrest"]
+  # setup / low-energy beats that make a weak opening
+  weak_open_words: [recap, establishing, sunrise, "morning light", quietly, calm, peaceful, gently, tender, softly, breakfast]
+
+default_weights:   # rank = sum(weight * normalised score)
+  hook: 0.30
+  cliffhanger: 0.25
+  standalone: 0.20
+  archetype_priority: 0.15
+  rule_score: 0.10
+  early_episode_bonus: 0.05   # small bonus for moments a new viewer meets first (fewer spoilers, faster payoff)
+
+genres:
+  hidden_identity_romance:
+    label: "Hidden identity / secret billionaire-duke romance"
+    detect: [duke, billionaire, ceo, heir, "secret identity", disguise, disguised, "presumed dead", "presumed-dead", hidden, usurp, usurping, rightful, prince, tycoon, "true identity", ducal, mysterious, stranger]
+    archetypes:
+      - id: humiliation_to_rescue
+        name: "Humiliated heroine → mysterious man steps in"
+        look_for: "Heroine is shamed/attacked in public; an underestimated man intervenes. Cut as he acts or speaks."
+        priority: 1.0
+        triggers: [kneel, mud, plain, worthless, disowned, "get out", guards, stranger, "let her go", "touch her", "step away"]
+      - id: identity_reveal
+        name: "The underdog is revealed as powerful"
+        look_for: "Room realises who he/she really is (duke, billionaire, heir). Hook on the reveal line, cut on the villain's reaction or a new threat."
+        priority: 0.95
+        triggers: [duke, rightful, heir, "who are you", "you already know", alive, crest, regalia, salute, "my son"]
+      - id: villain_comeuppance
+        name: "Villain gets put in their place"
+        look_for: "The bully/usurper is exposed, arrested or rejected. Viewer payoff, but end before resolution."
+        priority: 0.85
+        triggers: [arrest, treason, guilty, exposed, "seize him", rejected, "you will pay", documents]
+      - id: shock_proposal_or_marriage
+        name: "Shock proposal / contract marriage"
+        look_for: "A stranger proposes or marries the heroine in front of her enemies."
+        priority: 0.8
+        triggers: ["marry me", proposal, kneel, "my wife", wed, vow, ring]
+      - id: sacrifice_for_love
+        name: "Painful sacrifice for the partner"
+        look_for: "Heroine/hero endures pain to save the other (bare hands in thorns, taking a blow)."
+        priority: 0.7
+        triggers: [blood, bleeding, briars, thorns, "for him", "for her", "bare hands", wound]
+      - id: protective_fury
+        name: "Protective hero unleashes on attackers"
+        look_for: "Hero fights or threatens those who hurt the heroine."
+        priority: 0.6
+        triggers: [fight, punch, throw, "touch her", "lay a hand", sword, protect]
+    weights: {hook: 0.30, cliffhanger: 0.25, standalone: 0.20, archetype_priority: 0.15, rule_score: 0.10, early_episode_bonus: 0.05}
+
+  revenge_betrayal:
+    label: "Betrayal & revenge (jilted / framed / disowned)"
+    detect: [betrayed, betrayal, revenge, vengeance, framed, jilted, abandoned, altar, disowned, stepmother, sister, "cast aside", humiliated]
+    archetypes:
+      - id: public_betrayal
+        name: "Public betrayal"
+        look_for: "Partner/family betrays the lead in front of everyone (altar, party). Hook on the cruelest line, cut as the lead breaks or hardens."
+        priority: 1.0
+        triggers: [altar, wedding, "changed my mind", sister, "you knew", "cannot marry", betrayed, marrying]
+      - id: framed_accused
+        name: "Framed and accused"
+        look_for: "Lead is falsely accused (theft, poison, witchcraft); evidence 'found'; cut on the verdict or arrest."
+        priority: 0.9
+        triggers: [framed, guilty, arrest, theft, poison, witch, witchcraft, trial, testimony, "seize her"]
+      - id: cruelty_peak
+        name: "Peak cruelty / torture"
+        look_for: "Villain physically or psychologically tortures the lead; cut at the moment of maximum threat."
+        priority: 0.85
+        triggers: [iron, red-hot, chains, dungeon, crop, whip, burn, starve, gallows]
+      - id: defiant_comeback
+        name: "Lead fights back with a killer line"
+        look_for: "The wronged lead stands up and delivers a cutting line; the villain is stunned."
+        priority: 0.8
+        triggers: [defiant, "you will regret", "never", dignity, "how dare", "remember this"]
+      - id: revenge_payoff
+        name: "Revenge payoff"
+        look_for: "Tables turn on the villain; cut before full resolution."
+        priority: 0.75
+        triggers: [exposed, arrested, kneel, beg, "you will pay", ruined]
+    weights: {hook: 0.30, cliffhanger: 0.25, standalone: 0.20, archetype_priority: 0.15, rule_score: 0.10, early_episode_bonus: 0.05}
+
+  werewolf_fantasy_romance:
+    label: "Werewolf / alpha / fated-mate fantasy romance"
+    detect: [alpha, wolf, werewolf, pack, mate, luna, "fated", vampire, dragon, magic, curse, witch]
+    archetypes:
+      - id: mate_rejection
+        name: "Fated-mate rejection"
+        look_for: "Alpha publicly rejects his mate; cut on her reaction or a stronger alpha appearing."
+        priority: 1.0
+        triggers: [reject, "i reject", mate, luna, alpha, pack]
+      - id: power_awakening
+        name: "Hidden power awakens"
+        look_for: "Underestimated heroine reveals power/bloodline."
+        priority: 0.9
+        triggers: [eyes glow, power, bloodline, "white wolf", transform, shift]
+      - id: possessive_claim
+        name: "Possessive claim"
+        look_for: "Dominant male claims the heroine in front of rivals."
+        priority: 0.8
+        triggers: [mine, "touch her", claim, mark, growl]
+    weights: {hook: 0.30, cliffhanger: 0.25, standalone: 0.15, archetype_priority: 0.20, rule_score: 0.10, early_episode_bonus: 0.05}
+
+  family_drama:
+    label: "Family / in-law / domestic drama"
+    detect: [mother-in-law, "in-law", divorce, custody, affair, mistress, "my husband's family", "daughter-in-law", "son-in-law"]
+    archetypes:
+      - id: affair_exposed
+        name: "Affair or secret exposed"
+        look_for: "A spouse is caught; hook on the discovery line."
+        priority: 1.0
+        triggers: [affair, mistress, caught, "how could you", pregnant, divorce]
+      - id: in_law_cruelty
+        name: "In-law cruelty"
+        look_for: "Lead is humiliated by in-laws; cut as the lead snaps back or someone arrives."
+        priority: 0.9
+        triggers: [slap, "get out", kneel, servant, worthless, "mother-in-law"]
+      - id: inheritance_reversal
+        name: "Inheritance / status reversal"
+        look_for: "Will reading, deed, or surprise owner flips the power balance."
+        priority: 0.8
+        triggers: [inheritance, "the will", deed, owner, "belongs to", disinherit]
+    weights: {hook: 0.30, cliffhanger: 0.25, standalone: 0.25, archetype_priority: 0.10, rule_score: 0.10, early_episode_bonus: 0.05}
+
+  thriller_crime:
+    label: "Thriller / crime / mystery"
+    detect: [murder, killer, detective, police, kidnap, ransom, poison, investigation, gang, mafia, hostage]
+    archetypes:
+      - id: danger_reveal
+        name: "The danger is revealed"
+        look_for: "Body found, poison discovered, villain unmasked; cut on the next threat."
+        priority: 1.0
+        triggers: [poison, arsenic, dead, body, kidnapped, gun, knife, "it was you"]
+      - id: chase_or_escape
+        name: "Chase / escape under pressure"
+        look_for: "Lead escapes or is hunted; cut mid-chase."
+        priority: 0.85
+        triggers: [run, escape, chase, hide, secret passage, guards]
+      - id: interrogation_threat
+        name: "Interrogation / threat"
+        look_for: "Villain corners the lead with a threat."
+        priority: 0.75
+        triggers: [confess, threat, "or else", "tell me", interrogate]
+    weights: {hook: 0.35, cliffhanger: 0.30, standalone: 0.15, archetype_priority: 0.10, rule_score: 0.10, early_episode_bonus: 0.05}
+
+  mythology_devotional:
+    label: "Mythology / devotional / epic"
+    detect: [god, goddess, demon, asura, divine, curse, boon, temple, avatar, lord shiva, krishna, vishnu, ram]
+    archetypes:
+      - id: divine_intervention
+        name: "Divine intervention"
+        look_for: "A god/power intervenes at the moment of injustice."
+        priority: 1.0
+        triggers: [divine, light, thunder, appears, boon, blessing]
+      - id: curse_moment
+        name: "Curse / vow"
+        look_for: "A curse or vow is pronounced; cut on the consequence."
+        priority: 0.9
+        triggers: [curse, vow, oath, "i swear"]
+    weights: {hook: 0.30, cliffhanger: 0.25, standalone: 0.25, archetype_priority: 0.10, rule_score: 0.10, early_episode_bonus: 0.05}
+
+  generic:
+    label: "Generic microdrama (fallback when no playbook matches)"
+    detect: []
+    archetypes:
+      - id: conflict_peak
+        name: "Conflict peak"
+        look_for: "The single most intense confrontation; hook on the sharpest line, cut on the open question."
+        priority: 1.0
+        triggers: []
+      - id: reveal
+        name: "Reveal / twist"
+        look_for: "A secret comes out."
+        priority: 0.9
+        triggers: [truth, secret, "who are you", reveal]
+      - id: romance_beat
+        name: "Romance beat"
+        look_for: "Charged romantic moment interrupted or left hanging."
+        priority: 0.6
+        triggers: [kiss, love, embrace]
+    weights: {hook: 0.30, cliffhanger: 0.25, standalone: 0.20, archetype_priority: 0.10, rule_score: 0.15, early_episode_bonus: 0.05}

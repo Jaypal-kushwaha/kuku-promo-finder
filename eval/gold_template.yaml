@@ -1,0 +1,8 @@
+# HUMAN gold set: promo moments an editor would definitely cut, marked WITHOUT looking at the tool's output.
+# Copy to eval/gold.yaml and fill ~10-15 moments across ~8 episodes (mix early / middle / late episodes).
+# start/end = the core moment (mm:ss.ss from the screenplay), not necessarily a full 20-60 s clip.
+#
+# - episode: 1
+#   start: "00:33.80"
+#   end: "01:15.00"
+#   note: "Gerald holding sister's hand at altar -> 'he was never going to marry you'"
