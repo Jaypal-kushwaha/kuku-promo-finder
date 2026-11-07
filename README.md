@@ -1,95 +1,116 @@
-# Microdrama Promo Finder
+# 🎬 Promo Finder
 
-Reads a microdrama's episode screenplays and returns ranked 20–60 s promo clips. Each promo has
-episode + start/end timestamps for every segment, the hook (first 3 s), the cliffhanger it cuts on,
-one line on why it works, and a posting order.
+**Give it the episode scripts of a microdrama. It returns the best 20–60 second promo clips, ranked in the order to post them.**
 
-## Run it
+For every promo you get:
+- the episode and the exact start and end time of each part
+- the **hook** (what grabs the viewer in the first 3 seconds)
+- the **cliffhanger** (the unresolved moment it ends on)
+- **why it works**, and why it's in that position
+- the **promo script**: every line and action the viewer will see
+
+---
+
+## 1. One-time setup
+
+You need **Python 3.10 or newer**. In a terminal:
 
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-# API keys go in .env (or any *.env file in this folder), one per line:
-#   GEMINI_API_KEY=...   GROQ_API_KEY=...   MISTRAL_API_KEY=...   OPENROUTER_API_KEY=...
-# A provider whose key is missing is skipped.
-
-.venv/bin/python run.py --list-models                 # 0 tokens: which models each key can use
-.venv/bin/python run.py --ping                        # ~60 tokens per provider: proves each key works
-.venv/bin/python tests/test_offline.py                # 0 tokens: full pipeline with a fake LLM
-.venv/bin/python run.py "path/to/show_folder" --no-llm   # 0 tokens: rules-only baseline (~2 s)
-.venv/bin/python run.py "path/to/show_folder"            # full run, rotating the free providers in config.yaml
-.venv/bin/streamlit run app.py                        # UI: upload episodes, review, approve, export
-.venv/bin/python make_submission.py --doc Solution.pdf   # pack outputs into submission/ for Google Drive
+git clone https://github.com/<your-username>/kuku-promo-finder.git
+cd kuku-promo-finder
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
 ```
+On Windows, use `.venv\Scripts\` wherever this README says `.venv/bin/`.
 
-The input is a folder with one screenplay `.txt` per episode, in the input-pack format (`**SPEAKER (Emotion):**` /
-`Start: (mm:ss.xx) | End: (mm:ss.xx)` blocks). Outputs go to `outputs/<show>/`:
+**Add a free AI key.** Create a file called `.env` in this folder with one line:
+```
+GEMINI_API_KEY=paste-your-key-here
+```
+Get a free key at **https://aistudio.google.com/apikey**.
 
-| file | what |
+Optional extra free keys (the tool rotates between them when one runs out):
+```
+GROQ_API_KEY=...         # https://console.groq.com/keys
+MISTRAL_API_KEY=...      # https://console.mistral.ai
+OPENROUTER_API_KEY=...   # https://openrouter.ai/keys
+```
+No key at all? It still works: see "free mode" in step 3.
+
+---
+
+## 2. Put the episode scripts in a folder
+
+Create one folder per show and put **one `.txt` script per episode** inside it:
+
+```
+kuku-promo-finder/
+└── my_show/                          ← your input folder (any name)
+    ├── episode-001.txt
+    ├── episode-002.txt
+    └── ...
+```
+The scripts use the standard format, with a `Start: (mm:ss.xx) | End: (mm:ss.xx)` time on every line.
+
+---
+
+## 3. Run it
+
+```bash
+.venv/bin/python run.py "my_show"
+```
+Use the name of your folder, in quotes if it contains spaces. A 50-episode show takes about **5–8 minutes**. You'll see progress like `judging episodes 1-4…`, and it's done when it prints `wrote …promos.html`.
+
+| Want to… | Type |
 |---|---|
-| `promos.md` | ranked report: posting order, segments, hook, cliffhanger, why, checks, and the **promo script** |
-| `promos.csv` | the same as a sortable sheet for editors |
-| `promos.json` | everything, including scores, warnings, token usage |
-| `candidates_rules.json` | the rule-based windows before the LLM |
-| `llm_raw/` | every prompt and the raw model response, unedited |
+| Normal run (uses AI) | `.venv/bin/python run.py "my_show"` |
+| **Free mode** (no AI, no key, 2 seconds) | `.venv/bin/python run.py "my_show" --no-llm` |
+| Check your keys work | `.venv/bin/python run.py --ping` |
+| Finish using only saved AI answers (0 tokens) | `.venv/bin/python run.py "my_show" --cache-only` |
+| Use one specific model | `.venv/bin/python run.py "my_show" --model gemini-3.5-flash-lite` |
 
-### Several free providers at once (`config.yaml → llm.pool`)
+If the free AI limit runs out mid-run, the tool **still finishes**: the episodes it couldn't send to the AI get rule-based picks. Run the same command again later and only the missing parts go to the AI; finished parts are reused for free.
 
-Episodes go out in batches of 4 (about 5k tokens, under the free per-minute limits).
-- `strategy: round_robin` sends batch 1 to Gemini, batch 2 to Groq, batch 3 to Mistral, and so on.
-- `strategy: failover` stays on one provider until its quota ends.
+---
 
-A provider that says "quota exhausted" is dropped for the rest of the run, and the next one takes over.
+## 4. See the results
 
-Each new batch also gets a few promos already scored by earlier batches (**calibration**), so different models grade
-on the same scale. The series profile, stitching and the final posting order always use one model (`editor_model`).
-A disk cache means a re-run, or a run interrupted by quota, never pays twice for the same request.
+Results go to `outputs/<your folder name>/`:
 
-### Research knowledge pack (`knowledge/`)
+```
+outputs/my_show/
+├── promos.html   ← ⭐ OPEN THIS: visual report, top 10 as cards (double-click to open in a browser)
+├── promos.md     ← same report as text
+├── promos.csv    ← spreadsheet (Excel / Google Sheets)
+├── promos.json   ← all data
+└── llm_raw/      ← every question sent to the AI and its raw answer
+```
 
-`knowledge/promo_knowledge.json` holds pre-agreed rules about hooks, cliffhangers and standalone clarity. A compact
-slice of it (capped at about 600 tokens) is added to the judge prompt, so the model applies agreed rules instead of
-improvising its own. To refresh it, run `knowledge/research_prompt.md` in a web-search LLM, save the JSON there, and
-check it with `.venv/bin/python -m promo_finder.knowledge`.
+### Prefer an app?
+```bash
+.venv/bin/streamlit run app.py
+```
+It opens in your browser. Upload the episode files (or pick a folder, or open a previous run) and click **Find promos**. You can read each promo's script, tick the ones to approve, and download your approved list.
 
-### Swap the model
+---
+
+## 5. Make the submission folder
 
 ```bash
-run.py show/ --model gemini-3.5-flash-lite
-run.py show/ --provider openai_compat --base-url https://api.groq.com/openai/v1 --model openai/gpt-oss-120b --key-env GROQ_API_KEY
-run.py show/ --provider openai_compat --base-url http://localhost:11434/v1 --model qwen2.5:14b --key-env NONE   # Ollama
+.venv/bin/python make_submission.py --runs my_show --doc path/to/Solution_Doc.pdf
 ```
-Any OpenAI-compatible endpoint works. The model is only ever called from `promo_finder/llm.py`.
+This creates `submission/` containing your doc, the raw outputs and a zip, ready to upload to Google Drive. Share it as **"Anyone with the link"**.
 
-## How it works
+---
 
-```
-screenplays ─► [1] parse (code) ─► [2] compact beat sheet (code, ~3× fewer tokens)
-           ─► [3] series profile: genre + characters (1 LLM call over loglines)
-           ─► [4] rule candidates: genre-playbook lexicon scores every beat; best 20-60 s windows
-                  that open hot and end on a tense beat / right before a payoff (code, 0 tokens)
-           ─► [5] LLM judge: refine cut by BEAT ID, write hook / cliffhanger / why, score 1-5 (batched)
-           ─► [5b] LLM stitching: 2-3 segment cross-episode promos from the best moments
-           ─► [6] validate (code): beat ids exist, snap to clean cuts, 20-60 s, hook in 3 s, dedupe
-           ─► [7] rank: playbook-weighted score + LLM head-to-head editor review for the top 10
-```
+## How it works, briefly
 
-- **The LLM never writes timestamps.** It answers with beat ids (`b68`) that code maps back to the script's own
-  timestamps, so made-up times are impossible. Invalid ids fall back to the rule window and get flagged.
-- **Genre playbooks (`genres.yaml`)** define, per genre, the promo archetypes in the order we'd post them, plus trigger
-  words and ranking weights. A new show is mapped to a playbook automatically. These are hand-written assumptions,
-  meant to be re-fit on Kuku's real promo performance data.
-- **Free-tier friendly:** a 50-episode show takes about 16 small calls spread over the free providers,
-  ~100k input / ~25k output tokens in total.
-- **Human in the loop:** the Streamlit app shows each promo next to its beat sheet. The editor approves or rejects
-  and exports the approved list.
+1. **Read:** every episode is turned into a list of timed lines, actions and sounds.
+2. **Understand the show:** the AI reads the episode summaries to find the genre and the main characters, then picks the matching **genre playbook** from `genres.yaml` (which kinds of promos to post first).
+3. **Shortlist:** simple rules spot intense moments (slaps, threats, reveals, betrayals) and mark 3 possible clips per episode.
+4. **Judge:** the AI reviews each shortlisted clip, tightens the start and end, and writes the hook, cliffhanger and why. It can only pick moments that exist in the script, so it can't invent times.
+5. **Check and rank:** every clip is checked (20–60 s, clean cut, strong opening), then put in posting order. The AI compares the best 20 head-to-head to choose the top 10.
 
-## Evaluate
+**Settings you can change:** `config.yaml` sets which AI models to use (any provider; add a paid key as `reserve: true`) and the clip length. `genres.yaml` holds the genre playbooks, and `knowledge/` holds the editing rules given to the AI.
 
-```bash
-.venv/bin/python eval/quality.py outputs/<show>/promos.json \
-    --gold eval/gold.yaml --ratings eval/ratings.yaml --compare outputs/rules_only/promos.json
-```
-This reports automatic-check failures, LLM score saturation, how much the LLM changed the rule windows, recall
-against a human-marked gold set, human ratings of the top picks, and run-to-run / model-to-model stability.
-
-> The input pack is Kuku's confidential content and is git-ignored. Don't commit it.
+> The episode scripts are Kuku's confidential content and are never uploaded to this repo (see `.gitignore`).

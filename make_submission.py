@@ -63,7 +63,7 @@ def main():
         shutil.copytree(r, raw / r.name)
     (raw / "README.txt").write_text(
         "Unedited outputs of the promo finder on the full 50-episode input pack.\n"
-        "Start with promos.md (ranked report). promos.csv = same as a sheet; promos.json = everything incl. scores, "
+        "Start with promos.html (open in a browser: top 10 as cards). promos.md = same as text; promos.csv = same as a sheet; promos.json = everything incl. scores, "
         "checks and token usage; candidates_rules.json = rule-based windows before the LLM; llm_raw/ = every prompt "
         "and raw model response (or a replay note).\nfull_run_v1/ = the complete AI run on all 50 episodes. "
         "rules_only/ = the zero-token baseline used for comparison.\n")

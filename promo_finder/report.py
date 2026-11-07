@@ -1,4 +1,7 @@
-"""Human-readable outputs: a ranked Markdown report and a CSV an editor can sort."""
+"""Human-readable outputs: promos.html (visual), promos.md (text report) and promos.csv (spreadsheet).
+
+    python -m promo_finder.report outputs/<show>/promos.json     # rebuild the reports from an existing run
+"""
 from __future__ import annotations
 
 import csv
@@ -10,6 +13,8 @@ def seg_str(p: dict) -> str:
 
 
 def write_reports(r: dict, out: Path, top_n: int = 25) -> None:
+    from .html_report import write_html
+    write_html(r, out)
     promos = r["promos"]
     st = r["stats"]
     prof = r["profile"]
@@ -72,3 +77,11 @@ def write_reports(r: dict, out: Path, top_n: int = 25) -> None:
             w.writerow([p["rank"], p["id"], p["type"], p["title"], seg_str(p), p["duration"], p["hook"], p["cliffhanger"],
                         p["why_it_works"], p["archetype_name"], s["hook"], s["cliffhanger"], s["standalone"], s["final"],
                         " | ".join(p.get("warnings", []))])
+
+
+if __name__ == "__main__":
+    import json
+    import sys
+    src = Path(sys.argv[1])
+    write_reports(json.loads(src.read_text(encoding="utf-8")), src.parent)
+    print(f"rebuilt {src.parent}/promos.html, promos.md, promos.csv")
