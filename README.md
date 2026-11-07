@@ -79,7 +79,7 @@ Results go to `outputs/<your folder name>/`:
 
 ```
 outputs/my_show/
-├── promos.html   ← ⭐ OPEN THIS: visual report, top 10 as cards (double-click to open in a browser)
+├── promos.html   ← OPEN THIS: visual report, top 10 as cards (double-click to open in a browser)
 ├── promos.md     ← same report as text
 ├── promos.csv    ← spreadsheet (Excel / Google Sheets)
 ├── promos.json   ← all data
@@ -94,14 +94,6 @@ It opens in your browser. Upload the episode files (or pick a folder, or open a 
 
 ---
 
-## 5. Make the submission folder
-
-```bash
-.venv/bin/python make_submission.py --runs my_show --doc path/to/Solution_Doc.pdf
-```
-This creates `submission/` containing your doc, the raw outputs and a zip, ready to upload to Google Drive. Share it as **"Anyone with the link"**.
-
----
 
 ## How it works, briefly
 
@@ -112,5 +104,3 @@ This creates `submission/` containing your doc, the raw outputs and a zip, ready
 5. **Check and rank:** every clip is checked (20–60 s, clean cut, strong opening), then put in posting order. The AI compares the best 20 head-to-head to choose the top 10.
 
 **Settings you can change:** `config.yaml` sets which AI models to use (any provider; add a paid key as `reserve: true`) and the clip length. `genres.yaml` holds the genre playbooks, and `knowledge/` holds the editing rules given to the AI.
-
-> The episode scripts are Kuku's confidential content and are never uploaded to this repo (see `.gitignore`).
