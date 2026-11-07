@@ -14,3 +14,6 @@ outputs/ui_*/
 outputs/
 submission/
 docs/
+
+# Claude Code notes (local only)
+CLAUDE.md

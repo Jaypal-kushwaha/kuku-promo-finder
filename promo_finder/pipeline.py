@@ -233,6 +233,7 @@ def run(folder: str | Path, out_dir: str | Path | None = None, use_llm: bool = T
         "promos": ordered,
         "rejected": rejected,
         "editor_notes": review_notes,
+        "weights": weights,
         "stats": {
             "raw_tokens_est": raw_chars // 4,
             "beat_sheet_tokens_est": compact_chars // 4,
