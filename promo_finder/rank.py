@@ -6,6 +6,17 @@ validation warnings. Posting order then adds diversity: we don't post three
 """
 from __future__ import annotations
 
+import statistics
+
+
+def strength(x: float, pool: list[float]) -> float:
+    """Raw rule score -> 0-1 'how strong vs a typical moment of THIS show'.
+    typical (the median) = 0.67, twice typical = 0.80, three times = 0.86; 1.0 is never reached.
+    Unlike a percentile, the best clips don't all pile up at 100%: they keep their real differences."""
+    half = statistics.median(pool) / 2 if pool else 0.0
+    x = max(0.0, x)
+    return x / (x + half) if half > 0 else 0.5
+
 
 def archetype_lookup(playbooks: dict, primary: str, secondary: str) -> dict[str, dict]:
     out = {}
@@ -17,9 +28,8 @@ def archetype_lookup(playbooks: dict, primary: str, secondary: str) -> dict[str,
 
 
 def score_promos(promos: list[dict], weights: dict, n_episodes: int, rule_pool: list[float]) -> None:
-    """hook / cliffhanger / standalone arrive as 0-100 (checklist averages). Drama intensity is a percentile
-    against every rule window of the show, so it spreads evenly instead of being squashed by one outlier."""
-    pool = sorted(rule_pool) or [0.0]
+    """hook / cliffhanger / standalone arrive as 0-100 (checklist averages). Drama intensity is the rule score
+    compared with a typical rule window of the show (see strength())."""
     for p in promos:
         s = p["scores"]
         first_ep = min(seg["episode"] for seg in p["segments"])
@@ -28,7 +38,7 @@ def score_promos(promos: list[dict], weights: dict, n_episodes: int, rule_pool: 
             "cliffhanger": s["cliffhanger"] / 100,
             "standalone": s["standalone"] / 100,
             "archetype_priority": s.get("archetype_priority", 0.4),
-            "rule_score": sum(v <= s.get("rule", 0) for v in pool) / len(pool),
+            "rule_score": strength(s.get("rule", 0), rule_pool),
             "early_episode_bonus": 1 - (first_ep - 1) / max(1, n_episodes - 1),
         }
         total = sum(weights.get(k, 0) * v for k, v in comp.items()) / max(1e-6, sum(weights.values()))

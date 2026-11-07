@@ -93,7 +93,7 @@ PARTS = [
     ("cliffhanger", "Cliffhanger", "AI rating of the ending"),
     ("standalone", "Makes sense alone", "AI rating: clear to a new viewer"),
     ("archetype_priority", "Genre fit", "how high this promo type sits in the genre playbook"),
-    ("rule_score", "Drama intensity", "slaps, threats, reveals in the clip vs. the most intense clip in the show"),
+    ("rule_score", "Drama intensity", "slaps, threats, reveals in the clip vs. a typical moment of the show (typical = 67%, twice as strong = 80%)"),
     ("early_episode_bonus", "Early in the show", "earlier episodes = fewer spoilers"),
 ]
 DEFAULT_WEIGHTS = {"hook": 0.30, "cliffhanger": 0.25, "standalone": 0.20, "archetype_priority": 0.15,
@@ -207,7 +207,9 @@ def write_html(r: dict, out: Path, top_n: int = 10) -> Path:
              "chooses the posting order of the top 10 (scores alone are too close to separate the best clips).</li>"
              if has_editor else "")
     if r.get("mode") != "llm":
-        rater = "the simple rule scorer rates each clip's hook and cliffhanger (no AI in this run)"
+        rater = ("the simple rule scorer counts drama signals (threats, reveals, slaps, questions) in the first 3 seconds "
+                 "and in the ending, and compares them with a typical moment of this show: typical = 67, twice as "
+                 "strong = 80, three times = 86, so 100 is never reached (no AI in this run, so 'makes sense alone' is a neutral 50)")
     elif any(p["scores"].get("rubric") for p in promos):
         rater = ("the AI fills a 9-point checklist for every clip, 0-10 per point: 3 points for the hook, 3 for the "
                  "cliffhanger, 3 for whether it makes sense alone (shown on each card)")
@@ -215,7 +217,7 @@ def write_html(r: dict, out: Path, top_n: int = 10) -> Path:
         rater = "the AI rates each clip's hook, cliffhanger and whether it makes sense alone"
     how = f"""<div class="how"><h3>How the order is decided</h3><ol>
 <li><b>Score out of 100:</b> {rater}; the tool adds genre fit, drama intensity
-(how the clip compares with every other moment in the show), and a small bonus for early episodes. Editing warnings cost 3 points each.</li>
+(the clip's drama signals compared with a typical moment of the show), and a small bonus for early episodes. Editing warnings cost 3 points each.</li>
 {step2}<li><b>Everything else</b> follows the score, with a variety rule so similar promos or the same episode don't run back to back.</li>
 </ol><div class="wts">{wt_chips}</div></div>"""
     stitch_tag = ' <span class="tag stitch">joins episodes</span>'

@@ -15,7 +15,7 @@ from .judge import editor_review, judge_batches, rubric_scores, stitch
 from .llm import LLM
 from .parser import Episode, parse_folder
 from .profile import build_profile, speaker_map
-from .rank import archetype_lookup, posting_order, score_promos
+from .rank import archetype_lookup, posting_order, score_promos, strength
 from .validate import beats_to_segment, dedupe, finalize_segments, hook_check
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -26,10 +26,9 @@ def load_yaml(path: Path | str) -> dict:
 
 
 def _rules_scores(c: Candidate, all_c: list[Candidate]) -> tuple[float, float]:
-    """No-LLM mode: rule hook/cliff scores as a 0-100 percentile across the show."""
-    def q(val, vals):
-        return round(100 * sum(v <= val for v in vals) / len(vals), 1)
-    return q(c.hook_score, [x.hook_score for x in all_c]), q(c.cliff_score, [x.cliff_score for x in all_c])
+    """No-LLM mode: rule hook/cliff scores on 0-100, compared with a typical window of the show (rank.strength)."""
+    return (round(100 * strength(c.hook_score, [x.hook_score for x in all_c]), 1),
+            round(100 * strength(c.cliff_score, [x.cliff_score for x in all_c]), 1))
 
 
 def run(folder: str | Path, out_dir: str | Path | None = None, use_llm: bool = True,
