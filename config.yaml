@@ -2,23 +2,27 @@
 # A POOL of free providers. Any entry whose API key is missing from .env is skipped.
 # Check what each key can use with:  .venv/bin/python run.py --list-models
 llm:
-  strategy: round_robin       # round_robin = rotate providers batch by batch (spreads free quota)
-                              # failover    = stay on the first provider until its quota runs out (most consistent)
-  pool:   # verified with --list-models on 2026-11-07; rotate order = list order
-    - {name: gemini,      provider: gemini,        model: gemini-3.5-flash,             api_key_env: GEMINI_API_KEY}
-    - {name: groq,        provider: openai_compat, model: openai/gpt-oss-120b,          api_key_env: GROQ_API_KEY,       base_url: "https://api.groq.com/openai/v1"}
-    - {name: mistral,     provider: openai_compat, model: mistral-small-latest,         api_key_env: MISTRAL_API_KEY,    base_url: "https://api.mistral.ai/v1"}
-    - {name: openrouter,  provider: openai_compat, model: "google/gemma-4-31b-it:free", api_key_env: OPENROUTER_API_KEY, base_url: "https://openrouter.ai/api/v1"}
-    - {name: gemini-lite, provider: gemini,        model: gemini-3.5-flash-lite,        api_key_env: GEMINI_API_KEY}
-    # RESERVE (e.g. a paid key, or the API Kuku provides): never used while a free provider still answers;
-    # once every free provider is out of quota or rate-limited, ALL remaining work goes here.
-    # Uncomment, set the model/base_url, and put PAID_API_KEY=... in .env:
+  strategy: failover          # failover    = stay on the first key until it runs out (one model scores everything = consistent)
+                              # round_robin = rotate keys batch by batch (spreads free quota, scores less consistent)
+  pool:   # tried top to bottom; an entry whose key is missing from .env is skipped
+    - {name: claude-1,  provider: anthropic, model: claude-opus-5-5,  api_key_env: ANTHROPIC_API_KEY}
+    - {name: claude-2,  provider: anthropic, model: claude-opus-5-5,  api_key_env: ANTHROPIC_API_KEY_2}
+    - {name: gemini-1,  provider: gemini,    model: gemini-3.5-flash, api_key_env: GEMINI_API_KEY}
+    - {name: gemini-2,  provider: gemini,    model: gemini-3.5-flash, api_key_env: GEMINI_API_KEY_2}
+    - {name: gemini-3,  provider: gemini,    model: gemini-3.5-flash, api_key_env: GEMINI_API_KEY_3}
+    # cheaper Claude: model: claude-sonnet-5-5 (about half the price) or claude-haiku-5-5 (cheapest)
+    # free backups, used only after the keys above run out:
+    - {name: groq,       provider: openai_compat, model: openai/gpt-oss-120b,          api_key_env: GROQ_API_KEY,       base_url: "https://api.groq.com/openai/v1"}
+    - {name: mistral,    provider: openai_compat, model: mistral-small-latest,         api_key_env: MISTRAL_API_KEY,    base_url: "https://api.mistral.ai/v1"}
+    - {name: openrouter, provider: openai_compat, model: "google/gemma-4-31b-it:free", api_key_env: OPENROUTER_API_KEY, base_url: "https://openrouter.ai/api/v1"}
+    # more free providers: uncomment, add the key to .env, run --list-models, then put a model id from its list here
+    # - {name: nvidia,   provider: openai_compat, model: <model id>, api_key_env: NVIDIA_API_KEY,   base_url: "https://integrate.api.nvidia.com/v1"}
+    # - {name: cerebras, provider: openai_compat, model: <model id>, api_key_env: CEREBRAS_API_KEY, base_url: "https://api.cerebras.ai/v1"}
+    # RESERVE: used only once every entry above is out of quota or rate-limited
     # - {name: paid, provider: openai_compat, model: <model id>, api_key_env: PAID_API_KEY, base_url: "<https://.../v1>", reserve: true}
-    # - {name: paid-gemini, provider: gemini, model: gemini-3.5-flash, api_key_env: PAID_GEMINI_API_KEY, reserve: true}
-    # add more any time, e.g. Cerebras:
-    # - {name: cerebras, provider: openai_compat, model: <id from --list-models>, api_key_env: CEREBRAS_API_KEY, base_url: "https://api.cerebras.ai/v1"}
-  editor_model: gemini        # the final head-to-head ranking always uses ONE model (pool name) for consistency
-  temperature: 0.2
+  editor_model: claude-1      # the final head-to-head ranking always uses ONE model (pool name) for consistency
+  temperature: 0.2            # Gemini / OpenAI-style only (Claude Opus 5.5 does not take it)
+  # claude_effort: medium     # optional: low | medium | high (Claude thinking depth; default = model default)
   max_retries: 3
   min_seconds_between_calls: 4   # per provider, stays under free-tier requests/minute
   cooldown_seconds: 90           # a rate-limited provider is paused this long while others are tried

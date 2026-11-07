@@ -11,7 +11,7 @@ import yaml
 
 from .candidates import Candidate, Rules, all_candidates
 from .compress import beat_sheet, est_tokens, promo_script
-from .judge import editor_review, judge_batches, stitch
+from .judge import editor_review, judge_batches, rubric_scores, stitch
 from .llm import LLM
 from .parser import Episode, parse_folder
 from .profile import build_profile, speaker_map
@@ -25,12 +25,10 @@ def load_yaml(path: Path | str) -> dict:
     return yaml.safe_load(Path(path).read_text())
 
 
-def _rules_scores(c: Candidate, all_c: list[Candidate]) -> tuple[int, int]:
-    """Map rule hook/cliff scores to 1-5 by quintile across the show (no-LLM mode)."""
+def _rules_scores(c: Candidate, all_c: list[Candidate]) -> tuple[float, float]:
+    """No-LLM mode: rule hook/cliff scores as a 0-100 percentile across the show."""
     def q(val, vals):
-        vals = sorted(vals)
-        rank = sum(v <= val for v in vals) / len(vals)
-        return 1 + min(4, int(rank * 5))
+        return round(100 * sum(v <= val for v in vals) / len(vals), 1)
     return q(c.hook_score, [x.hook_score for x in all_c]), q(c.cliff_score, [x.cliff_score for x in all_c])
 
 
@@ -104,12 +102,14 @@ def run(folder: str | Path, out_dir: str | Path | None = None, use_llm: bool = T
             if seg is None:
                 seg = {"episode": ep.number, "start": c.start, "end": c.end, "start_beat": c.start_beat, "end_beat": c.end_beat}
                 warns.append("judge gave invalid beat ids; fell back to rule window")
-            hs, cs, ss = j.hook_score, j.cliffhanger_score, j.standalone_score
+            rubric, g = rubric_scores(j)
+            hs, cs, ss = g["hook"], g["cliffhanger"], g["standalone"]
             title, hook, cliff, why, arch, issue = j.title, j.hook, j.cliffhanger, j.why_it_works, j.archetype, j.standalone_issue
         else:
             seg = {"episode": ep.number, "start": c.start, "end": c.end, "start_beat": c.start_beat, "end_beat": c.end_beat}
             hs, cs = _rules_scores(c, flat)
-            ss = 3
+            ss = 50.0  # not assessed without the AI: neutral
+            rubric = None
             arch = c.archetype or "other"
             title = f"E{ep.number} {arch_info.get(arch, {}).get('name', 'conflict peak')}"
             hook, cliff = c.hook_text, c.cliff_text
@@ -125,14 +125,15 @@ def run(folder: str | Path, out_dir: str | Path | None = None, use_llm: bool = T
             "archetype": arch, "archetype_name": arch_info.get(arch, {}).get("name", "other"),
             "standalone_issue": issue,
             "scores": {"hook": hs, "cliffhanger": cs, "standalone": ss, "rule": c.rule_score,
-                       "archetype_priority": arch_info.get(arch, {}).get("priority", 0.4)},
+                       "archetype_priority": arch_info.get(arch, {}).get("priority", 0.4),
+                       **({"rubric": rubric} if rubric else {})},
             "rule_window": {"start": c.start, "end": c.end, "hook_text": c.hook_text, "cliff_text": c.cliff_text},
             "warnings": warns,
         })
 
     weights = playbooks[profile.primary_genre].get("weights", gcfg["default_weights"])
-    max_rule = max([c.rule_score for c in flat] + [1.0])
-    score_promos(promos, weights, len(episodes), max_rule)
+    rule_pool = [c.rule_score for c in flat]
+    score_promos(promos, weights, len(episodes), rule_pool)
     promos = dedupe(promos)
     # keep at most N per episode
     per_ep: dict[int, int] = {}
@@ -179,11 +180,12 @@ def run(folder: str | Path, out_dir: str | Path | None = None, use_llm: bool = T
                 "why_it_works": s.why_it_works, "archetype": s.archetype,
                 "archetype_name": arch_info.get(s.archetype, {}).get("name", "other"),
                 "standalone_issue": s.standalone_issue,
-                "scores": {"hook": s.hook_score, "cliffhanger": s.cliffhanger_score, "standalone": s.standalone_score,
+                "scores": {"hook": rubric_scores(s)[1]["hook"], "cliffhanger": rubric_scores(s)[1]["cliffhanger"],
+                           "standalone": rubric_scores(s)[1]["standalone"], "rubric": rubric_scores(s)[0],
                            "rule": med_rule, "archetype_priority": arch_info.get(s.archetype, {}).get("priority", 0.4)},
                 "warnings": warns,
             })
-        score_promos([p for p in promos if p["type"] == "stitched"], weights, len(episodes), max_rule)
+        score_promos([p for p in promos if p["type"] == "stitched"], weights, len(episodes), rule_pool)
         log(f"[5b] {sum(p['type'] == 'stitched' for p in promos)} stitched promos")
 
     usage = llm.usage if llm else None
@@ -234,6 +236,7 @@ def run(folder: str | Path, out_dir: str | Path | None = None, use_llm: bool = T
         "rejected": rejected,
         "editor_notes": review_notes,
         "weights": weights,
+        "score_scale": 100,
         "stats": {
             "raw_tokens_est": raw_chars // 4,
             "beat_sheet_tokens_est": compact_chars // 4,

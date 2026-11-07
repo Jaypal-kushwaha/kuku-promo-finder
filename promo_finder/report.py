@@ -48,8 +48,10 @@ def write_reports(r: dict, out: Path, top_n: int = 25) -> None:
               f"- **Cliffhanger:** {p['cliffhanger']}",
               f"- **Why it works:** {p['why_it_works']}",
               *( [f"- **Why post it #{p['rank']}:** {p['why_post_first']}"] if p.get("why_post_first") else []),
-              f"- **Archetype:** {p['archetype_name']} · scores hook {s['hook']}/5, cliffhanger {s['cliffhanger']}/5, "
-              f"standalone {s['standalone']}/5"]
+              f"- **Archetype:** {p['archetype_name']} · scores hook {s['hook']}, cliffhanger {s['cliffhanger']}, "
+              f"standalone {s['standalone']} ({'of 100' if r.get('score_scale') == 100 else 'of 5'})",
+              *( ["- **Checklist (0-10):** " + ", ".join(f"{k} {v}" for k, v in s["rubric"].items())]
+                 if s.get("rubric") else [])]
         if p.get("standalone_issue"):
             L.append(f"- **New-viewer gap:** {p['standalone_issue']}")
         if p.get("warnings"):

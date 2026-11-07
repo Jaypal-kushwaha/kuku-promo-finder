@@ -67,6 +67,12 @@ td.mono{font:13px ui-monospace,Consolas,monospace;white-space:nowrap}
 .how li{margin:3px 0}
 .how .wts{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
 td.num{font-weight:700;color:var(--accent);white-space:nowrap}
+.check{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12px}
+.check div{background:var(--chip);border-radius:8px;padding:6px 8px}
+.check b{display:block;font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:2px}
+.check span{display:flex;justify-content:space-between;gap:6px}
+.check i{font-style:normal;font-weight:700}
+@media (max-width:420px){.check{grid-template-columns:1fr}}
 footer{color:var(--muted);font-size:12.5px;margin-top:34px}
 @media (max-width:520px){header h1{font-size:24px}.grid{grid-template-columns:1fr}}
 @media print{body{background:#fff}.card{break-inside:avoid;box-shadow:none}details{display:none}}
@@ -112,6 +118,21 @@ def _bar(label: str, frac: float, weight: float) -> str:
             f"<div class='bar'><i style='width:{pct}%'></i></div><span>{pct}%</span>")
 
 
+def _checklist(s: dict) -> str:
+    """The AI's 9-point checklist (0-10 each) behind the hook / cliffhanger / makes-sense-alone scores."""
+    rub = s.get("rubric")
+    if not rub:
+        return ""
+    from .judge import GROUPS, RUBRIC
+    names = {"hook": "Hook", "cliffhanger": "Cliffhanger", "standalone": "Makes sense alone"}
+    cols = []
+    for g in GROUPS:
+        rows = "".join(f"<span title='{_e(tip)}'>{lab}<i>{rub.get(f, 0)}/10</i></span>"
+                       for gg, f, lab, tip in RUBRIC if gg == g)
+        cols.append(f"<div><b>{names[g]} {s[g]:.0f}</b>{rows}</div>")
+    return f"<div class='check'>{''.join(cols)}</div>"
+
+
 def _final(p: dict) -> float:
     return float(p["scores"].get("final", 0))
 
@@ -154,6 +175,7 @@ def _card(p: dict, wts: dict, n_shortlist: int) -> str:
   <div class="row"><span class="k">Ends on (cliffhanger)</span>{_e(p['cliffhanger'])}</div>
   <div class="row"><span class="k">Why it works</span>{_e(p['why_it_works'])}</div>
   {why_first}
+  {_checklist(s)}
   <div class="bars">{bars}</div>
   {minus}{warn}{script}
 </article>"""
@@ -184,10 +206,16 @@ def write_html(r: dict, out: Path, top_n: int = 10) -> Path:
     step2 = (f"<li><b>Head-to-head:</b> the AI editor compares the {n_short} highest-scoring clips side by side and "
              "chooses the posting order of the top 10 (scores alone are too close to separate the best clips).</li>"
              if has_editor else "")
-    rater = "the AI" if r.get("mode") == "llm" else "the simple rule scorer (no AI in this run)"
+    if r.get("mode") != "llm":
+        rater = "the simple rule scorer rates each clip's hook and cliffhanger (no AI in this run)"
+    elif any(p["scores"].get("rubric") for p in promos):
+        rater = ("the AI fills a 9-point checklist for every clip, 0-10 per point: 3 points for the hook, 3 for the "
+                 "cliffhanger, 3 for whether it makes sense alone (shown on each card)")
+    else:
+        rater = "the AI rates each clip's hook, cliffhanger and whether it makes sense alone"
     how = f"""<div class="how"><h3>How the order is decided</h3><ol>
-<li><b>Score out of 100:</b> {rater} rates each clip's hook, cliffhanger and whether it makes sense alone; the tool adds
-genre fit, drama intensity from the script, and a small bonus for early episodes. Editing warnings cost 3 points each.</li>
+<li><b>Score out of 100:</b> {rater}; the tool adds genre fit, drama intensity
+(how the clip compares with every other moment in the show), and a small bonus for early episodes. Editing warnings cost 3 points each.</li>
 {step2}<li><b>Everything else</b> follows the score, with a variety rule so similar promos or the same episode don't run back to back.</li>
 </ol><div class="wts">{wt_chips}</div></div>"""
     stitch_tag = ' <span class="tag stitch">joins episodes</span>'

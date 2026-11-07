@@ -124,8 +124,9 @@ for p in result["promos"]:
             for w in p.get("warnings", []):
                 st.caption("check: " + w)
         with b:
-            st.markdown(f"Archetype: **{p['archetype_name']}**  \nHook {s['hook']}/5 · Cliff {s['cliffhanger']}/5 · "
-                        f"Standalone {s['standalone']}/5  \nType: {p['type']} · source: {p['source']}")
+            st.markdown(f"Archetype: **{p['archetype_name']}**  \nScore **{s['final']:.0f}/100** · hook {s['hook']:.0f} · "
+                        f"cliffhanger {s['cliffhanger']:.0f} · makes sense alone {s['standalone']:.0f}  \n"
+                        f"Type: {p['type']} · source: {p['source']}")
             if st.checkbox("Approve", key=f"ok_{p['id']}", value=p["rank"] <= 10):
                 approved.append(p)
         if eps:

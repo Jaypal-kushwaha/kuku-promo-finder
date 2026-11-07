@@ -2,7 +2,10 @@
 
 The LLM sees compact beat sheets around the rule-based candidates and answers
 with BEAT IDS, never timestamps. It refines start/end, writes the hook,
-cliffhanger and why-it-works line, and scores hook / cliffhanger / standalone.
+cliffhanger and why-it-works line, and fills a 9-point checklist (0-10 each):
+3 criteria for the hook, 3 for the cliffhanger, 3 for "makes sense alone".
+Code averages each group into a 0-100 score, so the numbers are explainable
+criterion by criterion instead of one vague 1-5 grade.
 """
 from __future__ import annotations
 
@@ -15,7 +18,42 @@ from .parser import Episode
 from .profile import SeriesProfile
 
 
-class Judged(BaseModel):
+# (group, field, short label for reports, what the model must judge)
+RUBRIC = [
+    ("hook", "h_grab", "Grabs in 3 s", "the very first line/action is striking (slap, insult, threat, shock); 0 = calm setup"),
+    ("hook", "h_emotion", "Strong emotion", "intensity of the emotion in the opening (anger, fear, humiliation, desire)"),
+    ("hook", "h_question", "Raises a question", "the opening makes the viewer ask 'what happens / who is he / why?'"),
+    ("cliffhanger", "c_unresolved", "Cuts before payoff", "ends BEFORE the answer, blow or reveal lands; 0 = fully resolved"),
+    ("cliffhanger", "c_stakes", "High stakes", "how much is at stake at the cut (life, love, identity, public shame)"),
+    ("cliffhanger", "c_pull", "Need to see more", "how badly a viewer wants the next second"),
+    ("standalone", "s_clear", "Easy to follow", "a stranger understands who is who and what is happening"),
+    ("standalone", "s_arc", "Mini-story", "the clip has a setup, a turn and an open end on its own"),
+    ("standalone", "s_premise", "Sells the show", "it shows what the whole show is about (its premise / promise)"),
+]
+GROUPS = ("hook", "cliffhanger", "standalone")
+
+
+class Rubric(BaseModel):
+    """Checklist scores, 0-10 each. Field order = RUBRIC order."""
+    h_grab: int = Field(ge=0, le=10, description=RUBRIC[0][3])
+    h_emotion: int = Field(ge=0, le=10, description=RUBRIC[1][3])
+    h_question: int = Field(ge=0, le=10, description=RUBRIC[2][3])
+    c_unresolved: int = Field(ge=0, le=10, description=RUBRIC[3][3])
+    c_stakes: int = Field(ge=0, le=10, description=RUBRIC[4][3])
+    c_pull: int = Field(ge=0, le=10, description=RUBRIC[5][3])
+    s_clear: int = Field(ge=0, le=10, description=RUBRIC[6][3])
+    s_arc: int = Field(ge=0, le=10, description=RUBRIC[7][3])
+    s_premise: int = Field(ge=0, le=10, description=RUBRIC[8][3])
+
+
+def rubric_scores(r: Rubric) -> tuple[dict, dict]:
+    """-> (the 9 checklist values, {hook, cliffhanger, standalone} each 0-100 = group average x 10)."""
+    sub = {f: getattr(r, f) for _, f, _, _ in RUBRIC}
+    groups = {g: round(10 * sum(sub[f] for gg, f, _, _ in RUBRIC if gg == g) / 3, 1) for g in GROUPS}
+    return sub, groups
+
+
+class Judged(Rubric):
     candidate_id: str
     keep: bool = Field(description="false if this is not a usable promo even after adjusting the cut")
     title: str = Field(description="3-6 word working title for the promo")
@@ -25,9 +63,6 @@ class Judged(BaseModel):
     cliffhanger: str = Field(description="The unresolved moment the promo cuts on")
     why_it_works: str = Field(description="One line")
     archetype: str = Field(description="playbook archetype id, or 'other'")
-    hook_score: int = Field(ge=1, le=5)
-    cliffhanger_score: int = Field(ge=1, le=5)
-    standalone_score: int = Field(ge=1, le=5, description="5 = a stranger fully gets it; 1 = needs earlier episodes")
     standalone_issue: str = Field(default="", description="What a new viewer would not understand, or ''")
 
 
@@ -41,16 +76,13 @@ class Segment(BaseModel):
     end_beat: int
 
 
-class Stitched(BaseModel):
+class Stitched(Rubric):
     title: str
     segments: list[Segment] = Field(description="2-3 segments in play order; total 20-60 s")
     hook: str
     cliffhanger: str
     why_it_works: str
     archetype: str
-    hook_score: int = Field(ge=1, le=5)
-    cliffhanger_score: int = Field(ge=1, le=5)
-    standalone_score: int = Field(ge=1, le=5)
     standalone_issue: str = ""
 
 
@@ -68,6 +100,7 @@ def system_prompt(profile: SeriesProfile, playbooks: dict, cfg: dict) -> str:
     rules = load_rules(cfg.get("knowledge_pack"), cfg.get("knowledge_max_chars", 2400))
     rules = (f"\nEDITOR KNOWLEDGE (pre-agreed assumptions from research; apply them, do not re-derive):\n{rules}\n"
              if rules else "")
+    rubric = "\n".join(f"- {f} ({g}): {d}" for g, f, _, d in RUBRIC)
     return f"""You are a senior promo editor for vertical microdramas (ReelShort / DramaBox style ads on TikTok, Reels, Shorts).
 A promo is a {cfg['min_len']}-{cfg['max_len']} s clip cut from the show that pulls NEW viewers in. A good promo:
 1. HOOK: something in the first 3 seconds stops a scrolling viewer (slap, reveal, shocking line). No slow setup.
@@ -85,7 +118,12 @@ Rules:
 - Refer to cut points ONLY by beat ids that appear in the sheet. Never invent ids or timestamps.
 - Use the beat timestamps to keep the clip between {cfg['min_len']} and {cfg['max_len']} seconds (end time ≈ next beat's time).
 - Prefer to START on the most arresting line/action and END on the open question, threat or interrupted moment.
-- Be a harsh critic: scores of 5 are rare; set keep=false for clips that are mostly quiet setup.
+- Set keep=false for clips that are mostly quiet setup.
+SCORING - a 9-point checklist, each criterion 0-10, judged INDEPENDENTLY of the others:
+{rubric}
+Scale for every criterion: 0-2 missing | 3-4 weak | 5-6 a typical usable promo | 7-8 strong | 9-10 only the best
+few moments of the whole show. Use the whole range. A clip can have a 9 hook and a 4 cliffhanger - score what is
+on the page, not your overall impression, and do not give the same number to every criterion.
 """
 
 
@@ -154,12 +192,14 @@ def calibration_block(done: dict[str, Judged], k: int = 4) -> str:
     kept = [j for j in done.values() if j.keep]
     if not kept:
         return ""
-    kept.sort(key=lambda j: -(j.hook_score + j.cliffhanger_score + j.standalone_score))
+    total = lambda j: sum(rubric_scores(j)[1].values())
+    kept.sort(key=lambda j: -total(j))
     picks = kept[: k - 1] + ([kept[-1]] if len(kept) >= k else [])
-    rows = "\n".join(f"- {j.candidate_id} \"{j.title}\": hook {j.hook_score}, cliff {j.cliffhanger_score}, standalone "
-                     f"{j.standalone_score} - {j.why_it_works}" for j in picks)
-    return ("CALIBRATION - promos already scored in earlier episodes of this show. Keep your 1-5 scale consistent "
-            f"with these (a new clip gets a 5 only if it is at least as strong as the best here):\n{rows}\n\n")
+    rows = "\n".join(f"- {j.candidate_id} \"{j.title}\": "
+                     + ", ".join(f"{f} {v}" for f, v in rubric_scores(j)[0].items()) + f" - {j.why_it_works}"
+                     for j in picks)
+    return ("CALIBRATION - promos already scored in earlier episodes of this show. Keep your 0-10 checklist "
+            f"scale consistent with these (a new clip beats a score here only if it is clearly stronger):\n{rows}\n\n")
 
 
 def stitch(episodes: list[Episode], top: list[dict], profile: SeriesProfile, playbooks: dict,
@@ -204,8 +244,8 @@ def editor_review(top: list[dict], profile: SeriesProfile, playbooks: dict, cfg:
         segs = " + ".join(f"E{s['episode']} {s['start_ts']}-{s['end_ts']}" for s in p["segments"])
         lines.append(f"- {p['id']} [{p['type']}, {p['duration']:.0f}s, {segs}] \"{p['title']}\" | archetype: "
                      f"{p['archetype']} | hook: {p['hook']} | cliff: {p['cliffhanger']} | new-viewer gap: "
-                     f"{p.get('standalone_issue') or 'none'} | judge scores H{p['scores']['hook']}/C{p['scores']['cliffhanger']}"
-                     f"/S{p['scores']['standalone']}")
+                     f"{p.get('standalone_issue') or 'none'} | checklist hook {p['scores']['hook']:.0f}/cliff "
+                     f"{p['scores']['cliffhanger']:.0f}/alone {p['scores']['standalone']:.0f} (of 100)")
     prompt = (f"Shortlist of {len(top)} promos for this show:\n" + "\n".join(lines) +
               f"\n\nPick the {n} you would post FIRST, in order, for a launch week on TikTok/Reels. Compare them "
               "head-to-head: the first post must explain the show's premise to a stranger and hook hardest; "

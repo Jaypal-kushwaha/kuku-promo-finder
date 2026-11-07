@@ -51,7 +51,7 @@ class Usage:
 @dataclass
 class Endpoint:
     name: str
-    provider: str          # gemini | openai_compat
+    provider: str          # gemini | anthropic | openai_compat
     model: str
     api_key_env: str
     base_url: str = ""
@@ -138,6 +138,33 @@ class LLM:
         u = data.get("usage") or {}
         return data["choices"][0]["message"]["content"] or "", u.get("prompt_tokens", 0), u.get("completion_tokens", 0)
 
+    def _anthropic(self, ep: Endpoint, system: str, prompt: str) -> tuple[str, int, int]:
+        """Claude via the official SDK. Errors are re-raised as 'HTTP <code>: ...' so the shared
+        pool logic (cooldown on 429, dead on 401 / no credit) treats Claude like every other provider."""
+        import anthropic
+        if ep.key not in self._clients:
+            self._clients[ep.key] = anthropic.Anthropic(api_key=ep.key, max_retries=1, timeout=300)
+        client = self._clients[ep.key]
+        kw = dict(model=ep.model, max_tokens=16000, system=system, messages=[{"role": "user", "content": prompt}])
+        if self.cfg.get("claude_effort"):
+            kw["output_config"] = {"effort": self.cfg["claude_effort"]}
+        try:
+            try:  # server-side refusal fallback: a declined request is re-run on another Claude model
+                r = client.beta.messages.create(betas=["server-side-fallback-2026-07-01"], fallbacks="default", **kw)
+            except anthropic.BadRequestError as e:
+                if "fallback" not in str(e).lower():
+                    raise
+                r = client.messages.create(**kw)
+        except anthropic.APIStatusError as e:
+            code = 503 if e.status_code == 529 else e.status_code  # 529 = overloaded -> treat as temporary
+            raise RuntimeError(f"HTTP {code}: {str(e.message)[:300]}") from None
+        except anthropic.APIConnectionError as e:
+            raise RuntimeError(f"timeout / connection error: {e}") from None
+        if r.stop_reason == "refusal":
+            raise RuntimeError("model declined the request (refusal) -> trying next")
+        text = "".join(b.text for b in r.content if b.type == "text")
+        return text, r.usage.input_tokens or 0, r.usage.output_tokens or 0
+
     # ------------------------------------------------------------------ public
     def call(self, system: str, prompt: str, schema: Type[T], tag: str = "call", prefer: str | None = None) -> T:
         schema_json = schema.model_json_schema()
@@ -188,6 +215,8 @@ class LLM:
                 try:
                     if ep.provider == "gemini":
                         text, tin, tout = self._gemini(ep, full_system, attempt_prompt)
+                    elif ep.provider == "anthropic":
+                        text, tin, tout = self._anthropic(ep, full_system, attempt_prompt)
                     else:
                         text, tin, tout = self._openai_compat(ep, full_system, attempt_prompt)
                     dt = time.time() - t0
@@ -208,7 +237,7 @@ class LLM:
                     last_err = e
                     msg = str(e)
                     low = msg.lower()
-                    if any(c in low for c in ("per day", "perday", "daily", "quota exceeded", "insufficient", "credits")) \
+                    if any(c in low for c in ("per day", "perday", "daily", "quota exceeded", "insufficient", "credits", "credit balance")) \
                             or any(c in msg for c in ("HTTP 401", "HTTP 403", "404", "NOT_FOUND", "API_KEY_INVALID")):
                         ep.dead = True  # this provider is out for the rest of the run
                         print(f"  [llm] {ep.name}: {msg[:110]} -> switching provider")
@@ -289,6 +318,9 @@ def list_models(cfg: dict) -> None:
                 from google import genai
                 client = genai.Client(api_key=ep.key)  # keep a reference: the pager needs an open client
                 names = [m.name.replace("models/", "") for m in client.models.list()]
+            elif ep.provider == "anthropic":
+                import anthropic
+                names = [m.id for m in anthropic.Anthropic(api_key=ep.key).models.list()]
             else:
                 req = urllib.request.Request(ep.base_url.rstrip("/") + "/models",
                                              headers={"Authorization": f"Bearer {ep.key}", "User-Agent": "promo-finder/1.0"})

@@ -23,18 +23,21 @@ python3 -m venv .venv
 ```
 On Windows, use `.venv\Scripts\` wherever this README says `.venv/bin/`.
 
-**Add a free AI key.** Create a file called `.env` in this folder with one line:
+**Add your AI keys.** Copy the template and fill in the keys you have:
+```bash
+cp .env.example .env        # Windows: copy .env.example .env
 ```
-GEMINI_API_KEY=paste-your-key-here
-```
-Get a free key at **https://aistudio.google.com/apikey**.
+Open `.env` in any text editor and paste each key after its `=`. One key is enough; leave the rest empty.
 
-Optional extra free keys (the tool rotates between them when one runs out):
-```
-GROQ_API_KEY=...         # https://console.groq.com/keys
-MISTRAL_API_KEY=...      # https://console.mistral.ai
-OPENROUTER_API_KEY=...   # https://openrouter.ai/keys
-```
+| Name in `.env` | Where to get it | Cost |
+|---|---|---|
+| `GEMINI_API_KEY`, `GEMINI_API_KEY_2`, `GEMINI_API_KEY_3` | https://aistudio.google.com/apikey (one key per Google account) | free |
+| `ANTHROPIC_API_KEY`, `ANTHROPIC_API_KEY_2` | https://console.anthropic.com | paid |
+| `GROQ_API_KEY`, `MISTRAL_API_KEY`, `OPENROUTER_API_KEY` | console.groq.com · console.mistral.ai · openrouter.ai | free backups |
+
+Keys are tried in the order listed in `config.yaml`. When one runs out of quota, the next takes over automatically.
+Check your keys with `.venv/bin/python run.py --ping` (one tiny request per key).
+
 No key at all? It still works: see "free mode" in step 3.
 
 ---

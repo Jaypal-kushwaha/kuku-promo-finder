@@ -16,16 +16,19 @@ def archetype_lookup(playbooks: dict, primary: str, secondary: str) -> dict[str,
     return out
 
 
-def score_promos(promos: list[dict], weights: dict, n_episodes: int, max_rule: float) -> None:
+def score_promos(promos: list[dict], weights: dict, n_episodes: int, rule_pool: list[float]) -> None:
+    """hook / cliffhanger / standalone arrive as 0-100 (checklist averages). Drama intensity is a percentile
+    against every rule window of the show, so it spreads evenly instead of being squashed by one outlier."""
+    pool = sorted(rule_pool) or [0.0]
     for p in promos:
         s = p["scores"]
         first_ep = min(seg["episode"] for seg in p["segments"])
         comp = {
-            "hook": (s["hook"] - 1) / 4,
-            "cliffhanger": (s["cliffhanger"] - 1) / 4,
-            "standalone": (s["standalone"] - 1) / 4,
+            "hook": s["hook"] / 100,
+            "cliffhanger": s["cliffhanger"] / 100,
+            "standalone": s["standalone"] / 100,
             "archetype_priority": s.get("archetype_priority", 0.4),
-            "rule_score": min(1.0, s.get("rule", 0) / max_rule) if max_rule else 0,
+            "rule_score": sum(v <= s.get("rule", 0) for v in pool) / len(pool),
             "early_episode_bonus": 1 - (first_ep - 1) / max(1, n_episodes - 1),
         }
         total = sum(weights.get(k, 0) * v for k, v in comp.items()) / max(1e-6, sum(weights.values()))
