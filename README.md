@@ -16,7 +16,7 @@ For every promo you get:
 You need **Python 3.10 or newer**. In a terminal:
 
 ```bash
-git clone https://github.com/<your-username>/kuku-promo-finder.git
+git clone https://github.com/jaypal-kushwaha/kuku-promo-finder.git
 cd kuku-promo-finder
 python3 -m venv .venv
 .venv/bin/pip install -r requirements.txt
